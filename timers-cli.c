@@ -223,15 +223,38 @@ bool print_item(Config* config, ejson_struct* ejson) {
 		ejson = ejson->next;
 	}
 
+	char* words[] = {
+		"seconds",
+		"minutes",
+		"hours",
+		"days"
+	};
 
 	time_t act = mktime(&event_time);
 	time_t now = time(NULL);
+	time_t diff = act - now;
 
-	printf("%s%s\n%s%zd seconds left\n", config->pre, event, asctime(&event_time), act - now);
+	char* word = NULL;
+	if (diff < 60) {
+		word = words[0];
+	} else if (diff < 60 * 60) {
+		diff /= 60;
+		word = words[1];
+	} else if (diff < 60 * 60 * 24) {
+		diff /= 60 * 60 * 24;
+		word = words[2];
+	} else {
+		diff /= 3600;
+		word = words[3];
+	}
+
+	printf("%s%s\n%s%zd %s left\n", config->pre, event, asctime(&event_time), diff, word);
 	if (act - now < 0 && strlen(message) > 0) {
 		printf(" (%s)", message);
 	}
 	printf("%s", config->post);
+
+	fflush(stdout);
 	return true;
 }
 
