@@ -244,7 +244,7 @@ bool print_item(Config* config, ejson_struct* ejson) {
 		diff /= 60 * 60 * 24;
 		word = words[2];
 	} else {
-		diff /= 3600;
+		diff /= 60 * 60 * 24;
 		word = words[3];
 	}
 
