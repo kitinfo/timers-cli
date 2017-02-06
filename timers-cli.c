@@ -253,11 +253,11 @@ bool print_item(Config* config, ejson_struct* ejson) {
 	}
 
 	printf("%s%s\n%s", config->pre, event, asctime(&event_time));
-	if (diff > 0) {
+	if (act - now > 0) {
 		printf("%zd %s left\n", diff, word);
 	}
-	if (diff < 3600 && strlen(message) > 0) {
-		printf(" (%s)", message);
+	if (act - now < 3600 && strlen(message) > 0) {
+		printf("(%s)", message);
 	}
 	printf("%s", config->post);
 
