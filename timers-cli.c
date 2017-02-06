@@ -234,6 +234,10 @@ bool print_item(Config* config, ejson_struct* ejson) {
 	time_t now = time(NULL);
 	time_t diff = act - now;
 
+	if (diff < -3600 * 24) {
+		return true;
+	}
+
 	char* word = NULL;
 	if (diff < 60) {
 		word = words[0];
@@ -248,8 +252,11 @@ bool print_item(Config* config, ejson_struct* ejson) {
 		word = words[3];
 	}
 
-	printf("%s%s\n%s%zd %s left\n", config->pre, event, asctime(&event_time), diff, word);
-	if (act - now < 0 && strlen(message) > 0) {
+	printf("%s%s\n%s", config->pre, event, asctime(&event_time));
+	if (diff > 0) {
+		printf("%zd %s left\n", diff, word);
+	}
+	if (diff < 3600 && strlen(message) > 0) {
 		printf(" (%s)", message);
 	}
 	printf("%s", config->post);
