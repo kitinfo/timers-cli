@@ -245,7 +245,7 @@ bool print_item(Config* config, ejson_struct* ejson) {
 		diff /= 60;
 		word = words[1];
 	} else if (diff < 60 * 60 * 24) {
-		diff /= 60 * 60 * 24;
+		diff /= 60 * 60;
 		word = words[2];
 	} else {
 		diff /= 60 * 60 * 24;
@@ -345,6 +345,7 @@ int main(int argc, char** argv) {
 
 	while (true) {
 		run(&config, URL);
+		fflush(stdout);
 	}
 
 	return 0;
