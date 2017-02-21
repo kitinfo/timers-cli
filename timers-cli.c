@@ -262,6 +262,7 @@ bool print_item(Config* config, ejson_struct* ejson) {
 	printf("%s", config->post);
 
 	fflush(stdout);
+	sleep(10);
 	return true;
 }
 
@@ -293,7 +294,6 @@ void print_list(Config* config, ejson_struct* ejson) {
 			logprintf(config->log, LOG_ERROR, "Cannot print item.\n");
 			return;
 		}
-		sleep(10);
 		next = next->next;
 		i++;
 
@@ -345,7 +345,6 @@ int main(int argc, char** argv) {
 
 	while (true) {
 		run(&config, URL);
-		fflush(stdout);
 	}
 
 	return 0;
