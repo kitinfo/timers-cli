@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#define MAX_JSON_DEPTH 1000
+
 /**
  * Enum for eror codes.
  */
@@ -12,7 +14,9 @@ enum ejson_errors {
 	/** The given json is not valid json. */
 	EJSON_INVALID_JSON = 1,
 	/** You try to access a value with the wrong type. */
-	EJSON_WRONG_TYPE = 2
+	EJSON_WRONG_TYPE = 2,
+	/** Cannot find key. */
+	EJSON_KEY_NOT_FOUND = 3
 };
 
 /**
@@ -34,85 +38,149 @@ enum ejson_types {
 	/** Json null value */
 	EJSON_NULL = 16
 };
-
-
-/**
- * Definition of the basic ejson struct.
- * To understand the structure we use:
- * - To access all attributes of an json object
- *   you access first the child of the json object
- *   and then iterate over the list with the next pointer
- *   while next is not NULL.
- * - Same is to access values in an json array.
- * - Attributes then have a key (if come from object) and a value.
- */
-typedef struct _ejson_struct {
-
-	/**
-	 * Type of the struct. @see ejson_types.
-	 */
-	enum ejson_types type;
-	/** if the parent of this struct is an json object
-	 * this holds the key. If not it is NULL.
-	 */
+union ejson_base;
+typedef struct {
 	char* key;
-	/**
-	 * This holds the child struct. It is NULL if the struct has no child.
-	 */
-	struct _ejson_struct* child;
-	/**
-	 * This holds the next struct in the list.
-	 * It is NULL if the struct is the last one in the list.
-	 */
-	struct _ejson_struct* next;
+	union ejson_base* value;
+} ejson_key;
+typedef struct {
+	enum ejson_types type;
+	long length;
+	ejson_key** keys;
+} ejson_object;
+
+typedef struct {
+	enum ejson_types type;
+	long length;
+	union ejson_base** values;
+} ejson_array;
+
+typedef struct {
+	enum ejson_types type;
 	char* value;
-} ejson_struct;
+} ejson_string;
+
+typedef struct {
+	enum ejson_types type;
+} ejson_null;
+
+typedef struct {
+	enum ejson_types type;
+	long value;
+} ejson_number;
+
+typedef struct {
+	enum ejson_types type;
+	double value;
+} ejson_real;
+
+typedef struct {
+	enum ejson_types type;
+	int value;
+} ejson_bool;
+
+typedef union ejson_base {
+	enum ejson_types type;
+	ejson_object object;
+	ejson_array array;
+	ejson_string string;
+	ejson_null null;
+	ejson_number number;
+	ejson_real real;
+	ejson_bool boolean;
+} ejson_base;
 
 /**
  * Internal json parser structure.
  */
 typedef struct {
 	enum ejson_errors error;
-	char* reason;
-	char* pos;
+	char* data;
+	size_t pos;
+	const size_t len;
 	long counter;
-	bool warnings;
+	const bool warnings;
 	FILE* log;
 } ejson_state;
 
-/**
- * Returns the struct with the given key
- * @param ejson_struct* ejson root json struct
- * @param char* key key to find
- * @param bool childs check childrens of the root item
- * @return ejson struct with the given key or null.
- */
-ejson_struct* ejson_find_key(ejson_struct* ejson, char* key, bool childs);
+ejson_base* ejson_find_by_key(const ejson_object* root, const char* key, const int case_insensitive, const int childs);
 
 /**
  * Gets the value as int from given struct.
- * @param ejson_struct* ejson json struct
+ * @param ejson_base* root element
  * @param int* i place for the returned int
  * @return enum ejson_errors returns EJSON_WRONG_TYPE if there is an error.
  */
-enum ejson_errors ejson_get_int(ejson_struct* ejson, int* i);
+enum ejson_errors ejson_get_int(const ejson_base* root, int* i);
+
+/**
+ * Gets the value of the given key in an object as int.
+ * @param ejson_object* root element
+ * @param char* key key to search for.
+ * @param int case_insensitive Search for key case insentitive.
+ * @param int childs Search the childs, too.
+ * @param char** i place for the returned int
+ * @return enum ejson_errors returns EJSON_WRONG_TYPE if there is an error.
+ */
+enum ejson_errors ejson_get_int_from_key(const ejson_object* root, const char* key, const int case_insensitive, const int childs, int* i);
 
 /**
  * Gets the value as int from given struct.
- * @param ejson_struct* ejson json struct
+ * @param ejson_base* root element
  * @param int* i place for the returned int
  * @return enum ejson_errors returns EJSON_WRONG_TYPE if there is an error.
  */
-enum ejson_errors ejson_get_double(ejson_struct* ejson, double* i);
+enum ejson_errors ejson_get_double(const ejson_base* root, double* d);
 
+/**
+ * Gets the value of the given key in an object as double.
+ * @param ejson_object* root element
+ * @param char* key key to search for.
+ * @param int case_insensitive Search for key case insentitive.
+ * @param int childs Search the childs, too.
+ * @param char** i place for the returned double
+ * @return enum ejson_errors returns EJSON_WRONG_TYPE if there is an error.
+ */
+enum ejson_errors ejson_get_double_from_key(const ejson_object* root, const char* key, const int case_insensitive, const int childs, double* d);
+
+/**
+ * Gets the value as double from the given struct. It also returns the number if the type is int.
+ * @param ejson_base* root element
+ * @param double* i place for the returned double
+ * @return enum ejson_errors returns EJSON_WRONG_TYPE if there is an error.
+ */
+enum ejson_errors ejson_get_number(const ejson_base* root, double* d);
+
+/**
+ * Gets the value of the given key in an object as double.
+ * Returns also the number if type is int.
+ * @param ejson_object* root element
+ * @param char* key key to search for.
+ * @param int case_insensitive Search for key case insentitive.
+ * @param int childs Search the childs, too.
+ * @param double* i place for the returned double
+ * @return enum ejson_errors returns EJSON_WRONG_TYPE if there is an error.
+ */
+enum ejson_errors ejson_get_number_from_key(const ejson_object* root, const char* key, const int case_insensitive, const int childs, double* d);
 
 /**
  * Gets the value of the given struct as string.
- * @param ejson_struct* ejson json struct
+ * @param ejson_root* root element
  * @param char** s place for holding the string. Must not be freed.
  * @return enum ejson_errors returns EJSON_WRONG_TYPE if there is an error.
  */
-enum ejson_errors ejson_get_string(ejson_struct* ejson, char** s);
+enum ejson_errors ejson_get_string(const ejson_base* root, char** s);
+
+/**
+ * Gets the value of the given key in an object as string.
+ * @param ejson_object* root element
+ * @param char* key key to search for.
+ * @param int case_insensitive Search for key case insentitive.
+ * @param int childs Search the childs, too.
+ * @param char** i place for the returned string
+ * @return enum ejson_errors returns EJSON_WRONG_TYPE if there is an error.
+ */
+enum ejson_errors ejson_get_string_from_key(const ejson_object* root, const char* key, const int case_insensitive, const int childs, char** i);
 
 /**
  * Gets the value as boolean from the given struct.
@@ -120,32 +188,38 @@ enum ejson_errors ejson_get_string(ejson_struct* ejson, char** s);
  * @param bool* b place for holding the boolean value.
  * @return enum ejson_errors returns EJSON_WRONG_TYPE if there is an error.
  */
-enum ejson_errors ejson_get_boolean(ejson_struct* ejson, bool* b);
+enum ejson_errors ejson_get_boolean(const ejson_base* root, bool* b);
+
+/**
+ * Gets the value of the given key in an object as bool.
+ * @param ejson_object* root element
+ * @param char* key key to search for.
+ * @param int case_insensitive Search for key case insentitive.
+ * @param int childs Search the childs, too.
+ * @param char** i place for the returned bool
+ * @return enum ejson_errors returns EJSON_WRONG_TYPE if there is an error.
+ */
+enum ejson_errors ejson_get_boolean_from_key(const ejson_object* root, const char* key, const int case_insensitive, const int childs, bool* i);
 
 /**
  * Parses an json string into the given structure pointer.
  * IMPORTANT: It works direct on the given string. So it must be writable.
  * 	After the parsing you cannot parse this string again.
- * @param ejson_struct* ejson pointer for parsing the structure into.
- * @param char* string json string. MUST BE writable because this lib works directly 
+ * @param ejson_base** element to hold the parsed data.
+ * @param char* string json string. MUST BE writable because this lib works directly
  * 	on the given memory.
  * @return enum ejson_errors enum with error flags for parsing. @see enum
  */
-enum ejson_errors ejson_parse(ejson_struct** ejson, char* string);
+enum ejson_errors ejson_parse(char* string, const size_t len, ejson_base** root);
 
 /**
  * Same as ejson_parse but allows to write the warnings to a file or stderr.
  */
-enum ejson_errors ejson_parse_warnings(ejson_struct** ejson, char* string, bool warnings, FILE* outputstream);
+enum ejson_errors ejson_parse_warnings(char* string, const size_t len, const bool warnings, FILE* outputstream, ejson_base** root);
 
 /**
  * Cleanup the json structure.
  * It doesn't cleanup any key or value strings.
  * @param ejson_struct* ejson structure for cleanup.
  */
-void ejson_cleanup(ejson_struct* ejson);
-
-/**
- * For internal use.
- */
-ejson_struct* ejson_identify(ejson_state* state, ejson_struct* ejson);
+void ejson_cleanup(ejson_base* root);

@@ -11,7 +11,7 @@
 #include "libs/logger.h"
 #include "libs/easy_json.h"
 
-#define URL "http://api.kitinfo.de/timers/"
+#define URL "https://api.kitinfo.de/timers/"
 
 struct MemoryStruct {
 	char* memory;
@@ -61,166 +61,50 @@ int count_str(char* src) {
 	return counter;
 }
 
-void print_meal(Config* config, ejson_struct* ejson) {
-
-	char* meal = "";
-	char* dish = "";
-	bool bio = false;
-	bool fish = false;
-	bool pork = false;
-	bool cow = false;
-	bool cow_aw = false;
-	bool vegan = false;
-	bool veg = false;
-	bool nodata = false;
-	//char* info = "";
-	double price = -1.00;
-	time_t t;
-	struct tm* time_tm;
-	char closing_start[255];
-	char closing_end[255];
-	memset(closing_start, 0, sizeof(closing_start));
-	memset(closing_start, 0, sizeof(closing_end));
-
-	ejson_struct* next = ejson;
-
-	while (next) {
-		if (!strcmp(next->key, "meal")) {
-			meal = next->value;
-		} else if (!strcmp(next->key, "dish")) {
-			dish = next->value;
-		} else if (!strcmp(next->key, "bio")) {
-			ejson_get_boolean(ejson, &bio);
-		} else if (!strcmp(next->key, "fish")) {
-			ejson_get_boolean(ejson, &fish);
-		} else if (!strcmp(next->key, "pork")) {
-			ejson_get_boolean(ejson, &pork);
-		} else if (!strcmp(next->key, "cow")) {
-			ejson_get_boolean(ejson, &cow);
-		} else if (!strcmp(next->key, "cow_aw")) {
-			ejson_get_boolean(ejson, &cow_aw);
-		} else if (!strcmp(next->key, "vegan")) {
-			ejson_get_boolean(ejson, &vegan);
-		} else if (!strcmp(next->key, "veg")) {
-			ejson_get_boolean(ejson, &veg);
-		} else if (!strcmp(next->key, "info")) {
-			//info = next->value;
-		} else if (!strcmp(next->key, "nodata")) {
-			ejson_get_boolean(ejson, &nodata);
-		} else if (!strcmp(next->key, "price_1")) {
-
-			price = strtod(next->value, NULL);
-			//printf("price: %s\n", next->value);
-			//if (ejson_get_double(ejson, &price) != EJSON_OK) {
-			//	printf("Error\n");
-			//}
-		} else if (!strcmp(next->key, "closing_start")) {
-			t = strtoul(next->value, NULL, 10);
-			time_tm = localtime(&t);
-			strftime(closing_start, sizeof(closing_start), "%Y-%m-%d", time_tm);
-		} else if (!strcmp(next->key, "closing_end")) {
-			t = strtoul(next->value, NULL, 10);
-			time_tm = localtime(&t);
-			strftime(closing_end, sizeof(closing_end), "%Y-%m-%d", time_tm);
-		}
-
-		next = next->next;
-	}
-
-	if (nodata) {
-		printf("Geschlossen.\n");
-		return;
-	}
-
-	if (strlen(meal) < 1) {
-
-		if (closing_start[0] != 0 && closing_end[0] != 0) {
-			printf("Linie vom %s bis zum %s geschlossen.\n", closing_start, closing_end);
-		} else {
-			printf("Essen nicht gefunden.\n");
-		}
-		return;
-	}
-
-	printf("%-50s %.*s", meal, count_str(meal), "                                    ");
-	printf("%.2f\n", price);
-	if (strlen(dish) > 0) {
-		printf("(%s)\n", dish);
-	}
-
-}
-
-void print_line(Config* config, ejson_struct* ejson) {
-
-	ejson_struct* next = ejson;
-	if (!ejson) {
-		return;
-	}
-
-
-	while (next) {
-		if (next->child) {
-			print_meal(config, next->child);
-		}
-
-		next = next->next;
-	}
-
-	//printf("%s: %s\n", next->key, next->child->key);
-}
-
-ejson_struct* find_json_key(ejson_struct* ejson) {
-
-	while (ejson) {
-		if (ejson->key && !strcmp(ejson->key, "timers")) {
-			return ejson;
-		}
-		ejson = ejson->next;
-	}
-
-	return NULL;
-}
-
-
-bool print_item(Config* config, ejson_struct* ejson) {
+bool print_item(Config* config, ejson_base* ejson) {
 
 	if (!ejson || ejson->type != EJSON_OBJECT) {
-		logprintf(config->log, LOG_ERROR, "json is not an object.\n");
+		logprintf(config->log, LOG_ERROR, "The timers item is not an object.\n");
 		return false;
 	}
-
-	if (!ejson->child) {
-		logprintf(config->log, LOG_ERROR, "Object has no childs.\n");
-	}
-
-	ejson = ejson->child;
 
 	char* event = "";
 	char* message = "";
 
 	struct tm event_time = {0};
-
-	while (ejson) {
-		if (!ejson->key) {
+	long i;
+	int status;
+	ejson_key* next;
+	for (i = 0; i < ejson->object.length; i++) {
+		next = ejson->object.keys[i];
+		if (!next->key) {
 			continue;
-		} else if (!strcmp(ejson->key, "event")) {
-			event = ejson->value;
-		} else if (!strcmp(ejson->key, "message")) {
-			message = ejson->value;
-		} else if (!strcmp(ejson->key, "day")) {
-			event_time.tm_mday = strtol(ejson->value, NULL, 10);
-		} else if (!strcmp(ejson->key, "month")) {
-			event_time.tm_mon = strtol(ejson->value, NULL, 10) - 1;
-		} else if (!strcmp(ejson->key, "year")) {
-			event_time.tm_year = strtol(ejson->value, NULL, 10) - 1900;
-		} else if (!strcmp(ejson->key, "hour")) {
-			event_time.tm_hour = strtol(ejson->value, NULL, 10);
-		} else if (!strcmp(ejson->key, "minute")) {
-			event_time.tm_min = strtol(ejson->value, NULL, 10);
-		} else if (!strcmp(ejson->key, "second")) {
-			event_time.tm_sec = strtol(ejson->value, NULL, 10);
+		} else if (!strcmp(next->key, "event")) {
+			status = ejson_get_string(next->value, &event);
+		} else if (!strcmp(next->key, "message")) {
+			status = ejson_get_string(next->value, &message);
+		} else if (!strcmp(next->key, "day")) {
+			status = ejson_get_int(next->value, (int*) &event_time.tm_mday);
+		} else if (!strcmp(next->key, "month")) {
+			status = ejson_get_int(next->value, &event_time.tm_mon);
+			event_time.tm_mon--;
+		} else if (!strcmp(next->key, "year")) {
+			status = ejson_get_int(next->value, &event_time.tm_year);
+			event_time.tm_year -= 1900;
+		} else if (!strcmp(next->key, "hour")) {
+			status = ejson_get_int(next->value, &event_time.tm_hour);
+		} else if (!strcmp(next->key, "minute")) {
+			status = ejson_get_int(next->value, &event_time.tm_min);
+		} else if (!strcmp(next->key, "second")) {
+			status = ejson_get_int(next->value, &event_time.tm_sec);
+		} else {
+			status = EJSON_OK;
 		}
-		ejson = ejson->next;
+
+		if (status != EJSON_OK) {
+			logprintf(config->log, LOG_ERROR, "Cannot parse key: %s\n", next->key);
+			return false;
+		}
 	}
 
 	char* words[] = {
@@ -266,36 +150,41 @@ bool print_item(Config* config, ejson_struct* ejson) {
 	return true;
 }
 
-void print_list(Config* config, ejson_struct* ejson) {
+void print_list(Config* config, ejson_base* ejson) {
 
 	if (!ejson) {
 		return;
 	}
 
-	ejson = ejson->child;
+	if (ejson->type != EJSON_OBJECT) {
+		logprintf(config->log, LOG_ERROR, "The json root must be an object.\n");
+	}
 
-	ejson = find_json_key(ejson);
+	ejson = ejson_find_by_key(&ejson->object, "timers", false, false);
 
 	if (!ejson) {
 		logprintf(config->log, LOG_ERROR, "Something is wrong with the json (Cannot find timers key).\n");
 		return;
 	}
 
-	if (!ejson->child) {
-		logprintf(config->log, LOG_ERROR, "Timers has no children.\n");
+	if (ejson->type != EJSON_ARRAY) {
+		logprintf(config->log, LOG_ERROR, "The type of the key 'timers' must be an array.\n");
 		return;
 	}
-	ejson_struct* next = ejson->child;
-	int i = 0;
 
-	while (next) {
 
-		if (!print_item(config, next)) {
+	if (ejson->array.length == 0) {
+		printf("%sKeine Timers%s", config->pre, config->post);
+		sleep(1200);
+	}
+
+	long i = 0;
+	for (i = 0; i < ejson->array.length; i++) {
+
+		if (!print_item(config, ejson->array.values[i])) {
 			logprintf(config->log, LOG_ERROR, "Cannot print item.\n");
 			return;
 		}
-		next = next->next;
-		i++;
 
 		if (i > config->max) {
 			break;
@@ -310,9 +199,9 @@ void run(Config* config, char* url) {
 
 		logprintf(config->log, LOG_INFO, "STATUS: %d\n", status);
 
-		ejson_struct* ejson = NULL;
+		ejson_base* ejson = NULL;
 
-		if (ejson_parse(&ejson, config->data->memory) != EJSON_OK) {
+		if (ejson_parse(config->data->memory, config->data->size, &ejson) != EJSON_OK) {
 			logprintf(config->log, LOG_ERROR, "ERROR in parsing json.\n");
 		} else {
 			print_list(config, ejson);
