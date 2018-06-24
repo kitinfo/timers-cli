@@ -198,6 +198,8 @@ void print_list(Config* config, ejson_base* ejson) {
 
 		if (!print_item(config, ejson->array.values[i])) {
 			logprintf(config->log, LOG_ERROR, "Cannot print item.\n");
+			printf("%sKann Timer nicht anzeigen%s", config->pre, config->post);
+			sleep(60);
 			return;
 		}
 
