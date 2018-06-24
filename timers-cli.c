@@ -61,6 +61,21 @@ int count_str(char* src) {
 	return counter;
 }
 
+int convert_str_to_int(ejson_key* next, int* container) {
+	int status;
+	char* value;
+	char* endptr;
+	status = ejson_get_string(next->value, &value);
+	if (status != EJSON_OK ) {
+		return status;
+	}
+	*container = strtoul(value, &endptr, 10);
+	if (value == endptr) {
+		return 1;
+	}
+	return EJSON_OK;
+}
+
 bool print_item(Config* config, ejson_base* ejson) {
 
 	if (!ejson || ejson->type != EJSON_OBJECT) {
@@ -84,19 +99,19 @@ bool print_item(Config* config, ejson_base* ejson) {
 		} else if (!strcmp(next->key, "message")) {
 			status = ejson_get_string(next->value, &message);
 		} else if (!strcmp(next->key, "day")) {
-			status = ejson_get_int(next->value, (int*) &event_time.tm_mday);
+			status = convert_str_to_int(next, &event_time.tm_mday);
 		} else if (!strcmp(next->key, "month")) {
-			status = ejson_get_int(next->value, &event_time.tm_mon);
+			status = convert_str_to_int(next, &event_time.tm_mon);
 			event_time.tm_mon--;
 		} else if (!strcmp(next->key, "year")) {
-			status = ejson_get_int(next->value, &event_time.tm_year);
+			status = convert_str_to_int(next, &event_time.tm_year);
 			event_time.tm_year -= 1900;
 		} else if (!strcmp(next->key, "hour")) {
-			status = ejson_get_int(next->value, &event_time.tm_hour);
+			status = convert_str_to_int(next, &event_time.tm_hour);
 		} else if (!strcmp(next->key, "minute")) {
-			status = ejson_get_int(next->value, &event_time.tm_min);
+			status = convert_str_to_int(next, &event_time.tm_min);
 		} else if (!strcmp(next->key, "second")) {
-			status = ejson_get_int(next->value, &event_time.tm_sec);
+			status = convert_str_to_int(next, &event_time.tm_sec);
 		} else {
 			status = EJSON_OK;
 		}
@@ -198,7 +213,6 @@ void run(Config* config, char* url) {
 		int status = get_request(config->log, url, handleData, config, "", "");
 
 		logprintf(config->log, LOG_INFO, "STATUS: %d\n", status);
-
 		ejson_base* ejson = NULL;
 
 		if (ejson_parse(config->data->memory, config->data->size, &ejson) != EJSON_OK) {
@@ -216,7 +230,7 @@ int main(int argc, char** argv) {
 
 	LOGGER log = {
 		.stream = stdout,
-		.verbosity = 0
+		.verbosity = 4
 	};
 
 	struct MemoryStruct ms = {
