@@ -218,7 +218,9 @@ void run(Config* config, char* url) {
 		ejson_base* ejson = NULL;
 
 		if (ejson_parse(config->data->memory, config->data->size, &ejson) != EJSON_OK) {
+			printf("%s", config->pre);
 			logprintf(config->log, LOG_ERROR, "ERROR in parsing json.\n");
+			sleep(300);
 		} else {
 			print_list(config, ejson);
 		}
